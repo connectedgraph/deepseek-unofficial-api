@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+zendriver
+beautifulsoup4
+inscriptis
+PyVirtualDisplay

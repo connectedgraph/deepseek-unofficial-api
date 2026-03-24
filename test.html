@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeepSeek Proxy Console</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#080c10;--surface:#0d1117;--panel:#161b22;--panel2:#11161d;
+      --border:#21262d;--border2:#30363d;--text:#e6edf3;--muted:#7d8590;
+      --green:#3fb950;--red:#f85149;--amber:#d29922;--purple:#a78bfa;--blue:#58a6ff;
+    }
+    body{
+      background:
+        radial-gradient(circle at top, rgba(88,166,255,.08), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(167,139,250,.08), transparent 24%),
+        var(--bg);
+      color:var(--text);
+      font-family:'JetBrains Mono',monospace;
+      min-height:100vh;
+      padding:28px;
+    }
+    .shell{max-width:1220px;margin:0 auto}
+    .badge{
+      display:inline-flex;align-items:center;gap:8px;background:#0b1520;border:1px solid #1e3a5a;
+      color:var(--blue);font-size:10px;letter-spacing:.12em;padding:5px 12px;border-radius:99px;
+      text-transform:uppercase;margin-bottom:18px
+    }
+    .badge::before{
+      content:'';width:6px;height:6px;border-radius:50%;background:var(--green);
+      box-shadow:0 0 10px var(--green);animation:blink 1.8s infinite
+    }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+    h1{
+      font-family:'Syne',sans-serif;font-size:clamp(2.4rem,6vw,4rem);font-weight:800;line-height:1.05;
+      margin-bottom:10px;background:linear-gradient(135deg,#fff 0%,#7d8590 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+    }
+    h1 em{font-style:normal;-webkit-text-fill-color:var(--green);color:var(--green)}
+    .sub{color:var(--muted);font-size:12px;line-height:1.8;max-width:900px;margin-bottom:24px}
+    .grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+    .card{
+      background:linear-gradient(180deg,rgba(22,27,34,.95),rgba(13,17,23,.98));
+      border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.22)
+    }
+    .side{padding:18px;position:sticky;top:18px}
+    .main{padding:18px}
+    .sec{margin-bottom:18px}
+    .title{
+      font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:.12em;
+      text-transform:uppercase;color:var(--muted);margin-bottom:12px
+    }
+    .field{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+    label{font-size:11px;color:var(--muted)}
+    input[type="text"],input[type="number"],textarea{
+      width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:12px;
+      color:var(--text);padding:12px 14px;font:inherit;outline:none;transition:.18s
+    }
+    textarea{min-height:160px;resize:vertical;line-height:1.7}
+    input:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(88,166,255,.12)}
+    .toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .toggle{
+      display:flex;align-items:center;justify-content:space-between;background:var(--panel2);
+      border:1px solid var(--border);border-radius:12px;padding:12px 14px
+    }
+    .toggle span{font-size:11px}
+    input[type="checkbox"]{width:18px;height:18px;accent-color:var(--green)}
+    .btnrow{display:flex;gap:10px;flex-wrap:wrap}
+    button{
+      border:none;border-radius:12px;padding:12px 16px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+      transition:.18s;letter-spacing:.02em
+    }
+    .primary{background:var(--green);color:#08110b}
+    .primary:hover{transform:translateY(-1px);filter:brightness(1.06)}
+    .secondary{background:#14243a;color:var(--blue);border:1px solid #244b79}
+    .secondary:hover{transform:translateY(-1px)}
+    .ghost{background:transparent;color:var(--muted);border:1px solid var(--border2)}
+    .ghost:hover{color:var(--text);border-color:var(--blue)}
+    .status{
+      border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:14px;
+      font-size:12px;color:var(--muted);line-height:1.8;min-height:72px
+    }
+    .status strong{color:var(--text)}
+    .result{
+      display:grid;gap:14px
+    }
+    .panel{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px
+    }
+    .panel h2{
+      font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text)
+    }
+    .meta{
+      display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px
+    }
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+      border:1px solid var(--border2);background:#0b1520;font-size:10px;color:var(--muted)
+    }
+    pre{
+      white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--border);
+      border-radius:12px;padding:14px;color:var(--text);line-height:1.75;min-height:72px
+    }
+    .hint{font-size:10px;color:var(--muted);line-height:1.7}
+    .good{color:var(--green)}
+    .bad{color:var(--red)}
+    .mono{font-family:'JetBrains Mono',monospace}
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+      .side{position:static}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="badge">Local Proxy Console</div>
+    <h1>DeepSeek <em>Proxy</em> Console</h1>
+    <p class="sub">
+      面向本地调试的黑色控制台。支持单次请求、多轮对话、连通性测试，以及 deepthink / search 开关。
+      默认调用本机 <span class="mono">/chat</span> 与 <span class="mono">/health</span>。
+    </p>
+
+    <div class="grid">
+      <aside class="card side">
+        <div class="sec">
+          <div class="title">Request</div>
+          <div class="field">
+            <label for="request">Request</label>
+            <textarea id="request" placeholder="输入你的请求内容...">你好，请介绍一下这个代理。</textarea>
+          </div>
+          <div class="field">
+            <label for="timeout">Timeout (seconds)</label>
+            <input id="timeout" type="number" value="60" min="5" max="600" />
+          </div>
+          <div class="toggles">
+            <label class="toggle"><span>DeepThink</span><input id="deepthink" type="checkbox" /></label>
+            <label class="toggle"><span>Search</span><input id="search" type="checkbox" /></label>
+            <label class="toggle"><span>Multi Turn</span><input id="multi_turn" type="checkbox" /></label>
+            <label class="toggle"><span>Reuse Session</span><input id="reuse_session" type="checkbox" checked /></label>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="field">
+            <label for="session_id">Session ID</label>
+            <input id="session_id" type="text" placeholder="多轮对话时自动写入，也可手动粘贴" />
+          </div>
+          <div class="hint">开启 <span class="mono">Multi Turn</span> 时，首次请求会自动返回 session-id。若勾选 <span class="mono">Reuse Session</span>，后续请求会自动带上它。</div>
+        </div>
+
+        <div class="sec">
+          <div class="btnrow">
+            <button class="primary" id="sendBtn">Send</button>
+            <button class="secondary" id="healthBtn">Health Check</button>
+            <button class="ghost" id="clearBtn">Clear</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="title">Status</div>
+          <div class="status" id="statusBox"><strong>Ready.</strong> 等待发送请求。</div>
+        </div>
+      </aside>
+
+      <main class="card main">
+        <div class="result">
+          <section class="panel">
+            <h2>Response Meta</h2>
+            <div class="meta" id="metaBox">
+              <div class="pill">mode: <span class="mono" id="metaMode">-</span></div>
+              <div class="pill">session: <span class="mono" id="metaSession">-</span></div>
+              <div class="pill">health: <span class="mono" id="metaHealth">-</span></div>
+            </div>
+            <pre id="rawBox">还没有返回数据。</pre>
+          </section>
+
+          <section class="panel">
+            <h2>Final Text</h2>
+            <pre id="textBox">等待结果...</pre>
+          </section>
+
+          <section class="panel">
+            <h2>Thinking</h2>
+            <pre id="thinkingBox">如果开启 deepthink，这里会显示思考内容。</pre>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const state = {
+      lastSessionId: ''
+    };
+
+    function setStatus(message, isError = false) {
+      $("statusBox").innerHTML = `<strong class="${isError ? 'bad' : 'good'}">${isError ? 'Error' : 'Status'}</strong> ${escapeHtml(message)}`;
+    }
+
+    function setMeta({ mode = '-', session_id = null, ok = null } = {}) {
+      $("metaMode").textContent = mode || '-';
+      $("metaSession").textContent = session_id || '-';
+      $("metaHealth").textContent = ok === null ? '-' : (ok ? 'ok' : 'fail');
+    }
+
+    function setResult(data) {
+      $("rawBox").textContent = JSON.stringify(data, null, 2);
+      $("textBox").textContent = data?.text || '';
+      $("thinkingBox").textContent = data?.thinking || '';
+      setMeta(data);
+
+      if (data?.session_id) {
+        state.lastSessionId = data.session_id;
+        if ($("reuse_session").checked) {
+          $("session_id").value = data.session_id;
+        }
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+    }
+
+    async function callChat() {
+      const multiTurn = $("multi_turn").checked;
+      const reuseSession = $("reuse_session").checked;
+      const manualSessionId = $("session_id").value.trim();
+      const sessionId = multiTurn && reuseSession ? (manualSessionId || state.lastSessionId || null) : null;
+
+      const payload = {
+        request: $("request").value,
+        deepthink: $("deepthink").checked,
+        search: $("search").checked,
+        multi_turn: multiTurn,
+        timeout: Number($("timeout").value || 60)
+      };
+
+      if (sessionId) {
+        payload.session_id = sessionId;
+      }
+
+      setStatus("请求已发出，等待响应...");
+      setMeta({});
+
+      const resp = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        setStatus(data?.detail || '请求失败', true);
+        $("rawBox").textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+
+      setStatus("请求完成。");
+      setResult(data);
+    }
+
+    async function callHealth() {
+      setStatus("正在执行连通性测试...");
+      setMeta({});
+
+      const resp = await fetch('/health', { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setStatus(data?.detail || '连通性测试失败', true);
+        $("rawBox").textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+
+      setStatus(data.ok ? "连通性测试通过。" : "连通性测试返回异常内容。", !data.ok);
+      setResult(data);
+    }
+
+    $("sendBtn").addEventListener('click', () => {
+      callChat().catch((err) => {
+        setStatus(err?.message || '未知错误', true);
+      });
+    });
+
+    $("healthBtn").addEventListener('click', () => {
+      callHealth().catch((err) => {
+        setStatus(err?.message || '未知错误', true);
+      });
+    });
+
+    $("clearBtn").addEventListener('click', () => {
+      $("request").value = '';
+      $("session_id").value = '';
+      state.lastSessionId = '';
+      setMeta({});
+      $("rawBox").textContent = '还没有返回数据。';
+      $("textBox").textContent = '等待结果...';
+      $("thinkingBox").textContent = '如果开启 deepthink，这里会显示思考内容。';
+      setStatus("已清空。");
+    });
+  </script>
+</body>
+</html>
