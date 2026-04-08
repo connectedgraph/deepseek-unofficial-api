@@ -118,7 +118,7 @@
     <div class="badge">Local Proxy Console</div>
     <h1>DeepSeek <em>Proxy</em> Console</h1>
     <p class="sub">
-      面向本地调试的黑色控制台。支持单次请求、多轮对话、连通性测试，以及 deepthink / search 开关。
+      面向本地调试的黑色控制台。支持单次请求、多轮对话、连通性测试，以及 deepthink / search / expert mode 开关。
       默认调用本机 <span class="mono">/chat</span> 与 <span class="mono">/health</span>。
     </p>
 
@@ -137,6 +137,7 @@
           <div class="toggles">
             <label class="toggle"><span>DeepThink</span><input id="deepthink" type="checkbox" /></label>
             <label class="toggle"><span>Search</span><input id="search" type="checkbox" /></label>
+            <label class="toggle"><span>Expert Mode</span><input id="expert_mode" type="checkbox" /></label>
             <label class="toggle"><span>Multi Turn</span><input id="multi_turn" type="checkbox" /></label>
             <label class="toggle"><span>Reuse Session</span><input id="reuse_session" type="checkbox" checked /></label>
           </div>
@@ -238,6 +239,7 @@
         request: $("request").value,
         deepthink: $("deepthink").checked,
         search: $("search").checked,
+        expert_mode: $("expert_mode").checked,
         multi_turn: multiTurn,
         timeout: Number($("timeout").value || 60)
       };

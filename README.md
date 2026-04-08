@@ -5,6 +5,8 @@
 ## 中文
 
 一个基于浏览器自动化的本地 DeepSeek 非官方 API 代理。
+支持最新的**专家模式(expert_mode)**。
+可用于批量请求测试deepseek灰测的V4能力(bushi)
 
 当前项目核心只有一个入口：
 
@@ -22,6 +24,7 @@
 - 支持 token 池轮换
 - 支持 `deepthink` 深度思考开关
 - 支持 `search` 联网搜索开关
+- 支持 `expert_mode` 专家模式开关
 - 通过 `localStorage` 注入：
   - `userToken`
   - `thinkingEnabled`
@@ -41,6 +44,7 @@
   "request": "你好",
   "deepthink": true,
   "search": true,
+  "expert_mode": false,
   "multi_turn": false,
   "session_id": null,
   "timeout": 60
@@ -52,6 +56,7 @@
 - `request`: 必填，用户请求文本
 - `deepthink`: 可选，是否开启深度思考
 - `search`: 可选，是否开启联网搜索
+- `expert_mode`: 可选，是否开启专家模式
 - `multi_turn`: 可选，是否启用多轮对话模式
 - `session_id`: 可选，多轮模式下用于继续某个会话
 - `timeout`: 可选，等待回答的超时时间，单位秒
@@ -281,6 +286,7 @@ http://127.0.0.1:8000
   "request": "解释一下快速排序",
   "deepthink": true,
   "search": false,
+  "expert_mode": false,
   "multi_turn": false,
   "timeout": 60
 }
@@ -293,6 +299,7 @@ http://127.0.0.1:8000
   "request": "我们来聊聊快速排序",
   "deepthink": true,
   "search": false,
+  "expert_mode": false,
   "multi_turn": true,
   "timeout": 60
 }
@@ -305,6 +312,7 @@ http://127.0.0.1:8000
   "request": "那它的时间复杂度呢？",
   "deepthink": true,
   "search": false,
+  "expert_mode": true,
   "multi_turn": true,
   "session_id": "1932c424-9746-4a5e-b1f7-2a22ca2832f6",
   "timeout": 60
@@ -340,7 +348,7 @@ http://127.0.0.1:8000
 ```bash
 curl -X POST http://127.0.0.1:8000/chat \
   -H "Content-Type: application/json" \
-  -d "{\"request\":\"解释一下快速排序\",\"deepthink\":true,\"search\":false,\"multi_turn\":false}"
+  -d "{\"request\":\"解释一下快速排序\",\"deepthink\":true,\"search\":false,\"expert_mode\":true,\"multi_turn\":false}"
 ```
 
 ## 实现说明
@@ -384,6 +392,7 @@ It opens `chat.deepseek.com`, injects the local `userToken` and site preferences
 - Supports token pool rotation
 - Supports `deepthink`
 - Supports `search`
+- Supports `expert_mode`
 - Injects the following values through `localStorage`:
   - `userToken`
   - `thinkingEnabled`
@@ -403,6 +412,7 @@ Only one simple request format is kept:
   "request": "hello",
   "deepthink": true,
   "search": true,
+  "expert_mode": false,
   "multi_turn": false,
   "session_id": null,
   "timeout": 60
@@ -414,6 +424,7 @@ Only one simple request format is kept:
 - `request`: required, the user input text
 - `deepthink`: optional, enable thinking mode
 - `search`: optional, enable web search mode
+- `expert_mode`: optional, enable expert mode
 - `multi_turn`: optional, enable multi-turn conversation mode
 - `session_id`: optional, continue a previous conversation in multi-turn mode
 - `timeout`: optional, response timeout in seconds
@@ -644,6 +655,7 @@ It can be used to:
   "request": "Explain quicksort",
   "deepthink": true,
   "search": false,
+  "expert_mode": false,
   "multi_turn": false,
   "timeout": 60
 }
@@ -656,6 +668,7 @@ It can be used to:
   "request": "Let's talk about quicksort",
   "deepthink": true,
   "search": false,
+  "expert_mode": false,
   "multi_turn": true,
   "timeout": 60
 }
@@ -668,6 +681,7 @@ It can be used to:
   "request": "What is its time complexity?",
   "deepthink": true,
   "search": false,
+  "expert_mode": true,
   "multi_turn": true,
   "session_id": "1932c424-9746-4a5e-b1f7-2a22ca2832f6",
   "timeout": 60
@@ -703,7 +717,7 @@ It can be used to:
 ```bash
 curl -X POST http://127.0.0.1:8000/chat \
   -H "Content-Type: application/json" \
-  -d "{\"request\":\"Explain quicksort\",\"deepthink\":true,\"search\":false,\"multi_turn\":false}"
+  -d "{\"request\":\"Explain quicksort\",\"deepthink\":true,\"search\":false,\"expert_mode\":true,\"multi_turn\":false}"
 ```
 
 ## Implementation details

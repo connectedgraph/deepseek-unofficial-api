@@ -150,6 +150,7 @@ class DeepSeekProxyClient:
         token: str,
         deepthink: bool = False,
         search: bool = False,
+        expert_mode: bool = False,
         headless: bool = SETTINGS.effective_headless,
         verbose: bool = SETTINGS.effective_verbose,
     ) -> None:
@@ -158,6 +159,7 @@ class DeepSeekProxyClient:
         self.verbose = verbose
         self.default_deepthink = deepthink
         self.default_search = search
+        self.default_expert_mode = expert_mode
         self._initialized = False
         self._busy = False
 
@@ -188,6 +190,7 @@ class DeepSeekProxyClient:
         session_id: Optional[str] = None,
         deepthink: Optional[bool] = None,
         search: Optional[bool] = None,
+        expert_mode: Optional[bool] = None,
     ) -> None:
         if not self._initialized:
             await self.initialize()
@@ -195,6 +198,7 @@ class DeepSeekProxyClient:
         target_url = CHAT_URL if not session_id else SESSION_URL_TEMPLATE.format(session_id=session_id)
         current_deepthink = self.default_deepthink if deepthink is None else deepthink
         current_search = self.default_search if search is None else search
+        current_expert_mode = self.default_expert_mode if expert_mode is None else expert_mode
 
         self.logger.debug(f"Navigating to: {target_url}")
         await self.browser.main_tab.get(target_url)
@@ -228,7 +232,71 @@ class DeepSeekProxyClient:
         await self.browser.main_tab.reload()
         await asyncio.sleep(1)
         await self.browser.main_tab.wait_for("textarea", timeout=5)
+        if current_expert_mode:
+            await self._ensure_expert_mode_enabled()
         self.logger.debug("Request context prepared.")
+
+    async def _ensure_expert_mode_enabled(self) -> None:
+        try:
+            state = await self.browser.main_tab.evaluate(
+                """
+                (() => {{
+                    const control = document.querySelector('[data-model-type="expert"]');
+                    if (!control) {{
+                        return {{ found: false, active: false }};
+                    }}
+
+                    const nodes = [];
+                    let current = control;
+                    for (let depth = 0; current && depth < 4; depth += 1, current = current.parentElement) {{
+                        nodes.push(current);
+                    }}
+
+                    const explicitState = nodes
+                        .map((node) => {{
+                            const values = [
+                                node.getAttribute('aria-pressed'),
+                                node.getAttribute('aria-selected'),
+                                node.getAttribute('aria-checked'),
+                                node.getAttribute('data-state'),
+                                node.getAttribute('data-selected'),
+                                node.getAttribute('data-active')
+                            ];
+                            return values.find((value) => value !== null);
+                        }})
+                        .find((value) => value !== undefined);
+
+                    let active = false;
+                    if (explicitState !== undefined) {{
+                        active = ['true', 'checked', 'selected', 'active', 'on', 'open'].includes(String(explicitState).toLowerCase());
+                    }} else {{
+                        active = nodes.some((node) => /(^|\\s)(active|selected|checked|current)(\\s|$)/i.test(node.className || ''));
+                    }}
+
+                    if (!active) {{
+                        control.click();
+                        return {{ found: true, clicked: true, active_before: active }};
+                    }}
+
+                    return {{ found: true, clicked: false, active_before: active }};
+                }})()
+                """,
+                await_promise=True,
+                return_by_value=True,
+            )
+        except Exception:
+            self.logger.debug("Failed to enable expert mode.", exc_info=SETTINGS.debug_mode_enabled)
+            return
+
+        if not state.get("found"):
+            self.logger.debug("Expert mode control was not found on the page.")
+            return
+
+        if state.get("clicked"):
+            await asyncio.sleep(0.5)
+            self.logger.debug("Expert mode enabled.")
+        else:
+            self.logger.debug("Expert mode already enabled.")
 
     async def ask(self, request_text: str, timeout: int = 60) -> dict[str, Optional[str]]:
         if not self._initialized:
@@ -589,6 +657,7 @@ async def _handle_chat(request: Request) -> dict[str, Any]:
     timeout = _resolve_timeout(payload)
     deepthink = bool(payload.get("deepthink", False))
     search = bool(payload.get("search", False))
+    expert_mode = bool(payload.get("expert_mode", False))
     multi_turn = bool(payload.get("multi_turn", False))
     session_id = payload.get("session_id")
 
@@ -603,6 +672,7 @@ async def _handle_chat(request: Request) -> dict[str, Any]:
             session_id=target_session_id if multi_turn else None,
             deepthink=deepthink,
             search=search,
+            expert_mode=expert_mode,
         )
         result = await client.ask(request_text, timeout=timeout)
         CHARACTER_STATS.record(
@@ -628,6 +698,7 @@ async def _execute_request(
     request_text: str,
     deepthink: bool = False,
     search: bool = False,
+    expert_mode: bool = False,
     multi_turn: bool = False,
     session_id: Optional[str] = None,
     timeout: int = 60,
@@ -639,6 +710,7 @@ async def _execute_request(
             session_id=session_id if multi_turn else None,
             deepthink=deepthink,
             search=search,
+            expert_mode=expert_mode,
         )
         result = await client.ask(request_text, timeout=timeout)
         CHARACTER_STATS.record(
@@ -679,6 +751,7 @@ async def health_get() -> dict[str, Any]:
         request_text=CONNECTIVITY_PROMPT,
         deepthink=False,
         search=False,
+        expert_mode=False,
         multi_turn=False,
         session_id=None,
         timeout=45,
