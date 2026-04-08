@@ -194,6 +194,8 @@ JSON.parse(localStorage.getItem('userToken')).value
 pip install -r requirements.txt
 ```
 
+其中 token 统计依赖 `transformers`，并会读取项目内的 `tokenizer/deepseek_v3_tokenizer`。
+
 ## 启动
 
 ```bash
@@ -328,7 +330,17 @@ http://127.0.0.1:8000
   "mode": "single_turn",
   "session_id": null,
   "text": "这是回答内容",
-  "thinking": "这是思考内容"
+  "thinking": "这是思考内容",
+  "usage": {
+    "tokens": {
+      "tokenizer": "deepseek_v3_tokenizer",
+      "input": 12,
+      "thinking": 38,
+      "text": 56,
+      "output_total": 94,
+      "all_total": 106
+    }
+  }
 }
 ```
 
@@ -339,7 +351,17 @@ http://127.0.0.1:8000
   "mode": "multi_turn",
   "session_id": "1932c424-9746-4a5e-b1f7-2a22ca2832f6",
   "text": "这是回答内容",
-  "thinking": "这是思考内容"
+  "thinking": "这是思考内容",
+  "usage": {
+    "tokens": {
+      "tokenizer": "deepseek_v3_tokenizer",
+      "input": 10,
+      "thinking": 24,
+      "text": 41,
+      "output_total": 65,
+      "all_total": 75
+    }
+  }
 }
 ```
 
@@ -563,6 +585,8 @@ JSON.parse(localStorage.getItem('userToken')).value
 pip install -r requirements.txt
 ```
 
+Token usage counting depends on `transformers` and reads the local `tokenizer/deepseek_v3_tokenizer` files.
+
 ## Start
 
 ```bash
@@ -697,7 +721,17 @@ It can be used to:
   "mode": "single_turn",
   "session_id": null,
   "text": "This is the answer",
-  "thinking": "This is the thinking trace"
+  "thinking": "This is the thinking trace",
+  "usage": {
+    "tokens": {
+      "tokenizer": "deepseek_v3_tokenizer",
+      "input": 6,
+      "thinking": 18,
+      "text": 12,
+      "output_total": 30,
+      "all_total": 36
+    }
+  }
 }
 ```
 
@@ -708,7 +742,17 @@ It can be used to:
   "mode": "multi_turn",
   "session_id": "1932c424-9746-4a5e-b1f7-2a22ca2832f6",
   "text": "This is the answer",
-  "thinking": "This is the thinking trace"
+  "thinking": "This is the thinking trace",
+  "usage": {
+    "tokens": {
+      "tokenizer": "deepseek_v3_tokenizer",
+      "input": 5,
+      "thinking": 11,
+      "text": 9,
+      "output_total": 20,
+      "all_total": 25
+    }
+  }
 }
 ```
 

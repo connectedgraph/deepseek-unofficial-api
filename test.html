@@ -183,6 +183,11 @@
           </section>
 
           <section class="panel">
+            <h2>Token Usage</h2>
+            <pre id="usageBox">等待 token 统计...</pre>
+          </section>
+
+          <section class="panel">
             <h2>Thinking</h2>
             <pre id="thinkingBox">如果开启 deepthink，这里会显示思考内容。</pre>
           </section>
@@ -210,6 +215,7 @@
 
     function setResult(data) {
       $("rawBox").textContent = JSON.stringify(data, null, 2);
+      $("usageBox").textContent = data?.usage ? JSON.stringify(data.usage, null, 2) : 'No token usage returned.';
       $("textBox").textContent = data?.text || '';
       $("thinkingBox").textContent = data?.thinking || '';
       setMeta(data);
@@ -302,6 +308,7 @@
       state.lastSessionId = '';
       setMeta({});
       $("rawBox").textContent = '还没有返回数据。';
+      $("usageBox").textContent = '等待 token 统计...';
       $("textBox").textContent = '等待结果...';
       $("thinkingBox").textContent = '如果开启 deepthink，这里会显示思考内容。';
       setStatus("已清空。");

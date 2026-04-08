@@ -23,6 +23,7 @@ SESSION_URL_TEMPLATE = "https://chat.deepseek.com/a/chat/s/{session_id}"
 BASE_DIR = Path(__file__).resolve().parent
 ENV_FILE = BASE_DIR / ".env"
 TEST_UI_FILE = BASE_DIR / "test.html"
+TOKENIZER_DIR = BASE_DIR / "tokenizer" / "deepseek_v3_tokenizer"
 CONNECTIVITY_PROMPT = "你是连通性测试器，请只回复：测试通畅✅"
 
 
@@ -126,6 +127,68 @@ CHARACTER_STATS = CharacterStats(
 )
 
 
+class TokenUsageCounter:
+    def __init__(self, tokenizer_dir: Path) -> None:
+        self.tokenizer_dir = tokenizer_dir
+        self._tokenizer = None
+        self._lock = Lock()
+        self._load_error: Optional[str] = None
+
+    def _load_tokenizer(self) -> Any:
+        with self._lock:
+            if self._tokenizer is not None:
+                return self._tokenizer
+            if self._load_error is not None:
+                raise RuntimeError(self._load_error)
+
+            try:
+                from transformers import AutoTokenizer
+            except Exception as exc:
+                self._load_error = f"transformers import failed: {exc}"
+                raise RuntimeError(self._load_error) from exc
+
+            try:
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    str(self.tokenizer_dir),
+                    trust_remote_code=True,
+                )
+            except Exception as exc:
+                self._load_error = f"tokenizer load failed: {exc}"
+                raise RuntimeError(self._load_error) from exc
+
+            return self._tokenizer
+
+    def count_text(self, text: Optional[str]) -> int:
+        normalized = text or ""
+        if not normalized:
+            return 0
+
+        tokenizer = self._load_tokenizer()
+        return len(tokenizer.encode(normalized, add_special_tokens=False))
+
+    def build_usage(
+        self,
+        request_text: Optional[str],
+        thinking_text: Optional[str],
+        response_text: Optional[str],
+    ) -> dict[str, Any]:
+        input_tokens = self.count_text(request_text)
+        thinking_tokens = self.count_text(thinking_text)
+        text_tokens = self.count_text(response_text)
+        output_total = thinking_tokens + text_tokens
+        return {
+            "tokenizer": "deepseek_v3_tokenizer",
+            "input": input_tokens,
+            "thinking": thinking_tokens,
+            "text": text_tokens,
+            "output_total": output_total,
+            "all_total": input_tokens + output_total,
+        }
+
+
+TOKEN_USAGE_COUNTER = TokenUsageCounter(TOKENIZER_DIR)
+
+
 def _extract_request_text(payload: dict[str, Any]) -> str:
     request_text = payload.get("request")
     if isinstance(request_text, str) and request_text.strip():
@@ -142,6 +205,22 @@ def _extract_session_id_from_url(url: str) -> Optional[str]:
     if not matched:
         return None
     return matched.group(1)
+
+
+def _build_token_usage(
+    request_text: Optional[str],
+    thinking_text: Optional[str],
+    response_text: Optional[str],
+) -> Optional[dict[str, Any]]:
+    try:
+        return TOKEN_USAGE_COUNTER.build_usage(
+            request_text=request_text,
+            thinking_text=thinking_text,
+            response_text=response_text,
+        )
+    except Exception as exc:
+        getLogger("DeepSeekProxy").warning("Token usage calculation failed: %s", exc)
+        return None
 
 
 class DeepSeekProxyClient:
@@ -675,6 +754,11 @@ async def _handle_chat(request: Request) -> dict[str, Any]:
             expert_mode=expert_mode,
         )
         result = await client.ask(request_text, timeout=timeout)
+        usage = _build_token_usage(
+            request_text=request_text,
+            thinking_text=result.get("thinking"),
+            response_text=result.get("text"),
+        )
         CHARACTER_STATS.record(
             request_text=request_text,
             response_text=result.get("text"),
@@ -685,6 +769,7 @@ async def _handle_chat(request: Request) -> dict[str, Any]:
             "session_id": result.get("session_id") if multi_turn else None,
             "text": result.get("text"),
             "thinking": result.get("thinking"),
+            "usage": {"tokens": usage} if usage is not None else None,
         }
     except HTTPException:
         raise
@@ -713,6 +798,11 @@ async def _execute_request(
             expert_mode=expert_mode,
         )
         result = await client.ask(request_text, timeout=timeout)
+        usage = _build_token_usage(
+            request_text=request_text,
+            thinking_text=result.get("thinking"),
+            response_text=result.get("text"),
+        )
         CHARACTER_STATS.record(
             request_text=request_text,
             response_text=result.get("text"),
@@ -723,6 +813,7 @@ async def _execute_request(
             "session_id": result.get("session_id") if multi_turn else None,
             "text": result.get("text"),
             "thinking": result.get("thinking"),
+            "usage": {"tokens": usage} if usage is not None else None,
         }
     finally:
         await _release_client(client)
@@ -764,6 +855,7 @@ async def health_get() -> dict[str, Any]:
         "session_id": result.get("session_id"),
         "text": text,
         "thinking": result.get("thinking"),
+        "usage": result.get("usage"),
     }
 
 

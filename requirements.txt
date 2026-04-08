@@ -4,3 +4,4 @@ zendriver
 beautifulsoup4
 inscriptis
 PyVirtualDisplay
+transformers
