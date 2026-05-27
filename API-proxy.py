@@ -319,20 +319,20 @@ class DeepSeekProxyClient:
         try:
             state = await self.browser.main_tab.evaluate(
                 """
-                (() => {{
+                (() => {
                     const control = document.querySelector('[data-model-type="expert"]');
-                    if (!control) {{
-                        return {{ found: false, active: false }};
-                    }}
+                    if (!control) {
+                        return { found: false, active: false };
+                    }
 
                     const nodes = [];
                     let current = control;
-                    for (let depth = 0; current && depth < 4; depth += 1, current = current.parentElement) {{
+                    for (let depth = 0; current && depth < 4; depth += 1, current = current.parentElement) {
                         nodes.push(current);
-                    }}
+                    }
 
                     const explicitState = nodes
-                        .map((node) => {{
+                        .map((node) => {
                             const values = [
                                 node.getAttribute('aria-pressed'),
                                 node.getAttribute('aria-selected'),
@@ -342,23 +342,23 @@ class DeepSeekProxyClient:
                                 node.getAttribute('data-active')
                             ];
                             return values.find((value) => value !== null);
-                        }})
+                        })
                         .find((value) => value !== undefined);
 
                     let active = false;
-                    if (explicitState !== undefined) {{
+                    if (explicitState !== undefined) {
                         active = ['true', 'checked', 'selected', 'active', 'on', 'open'].includes(String(explicitState).toLowerCase());
-                    }} else {{
+                    } else {
                         active = nodes.some((node) => /(^|\\s)(active|selected|checked|current)(\\s|$)/i.test(node.className || ''));
-                    }}
+                    }
 
-                    if (!active) {{
+                    if (!active) {
                         control.click();
-                        return {{ found: true, clicked: true, active_before: active }};
-                    }}
+                        return { found: true, clicked: true, active_before: active };
+                    }
 
-                    return {{ found: true, clicked: false, active_before: active }};
-                }})()
+                    return { found: true, clicked: false, active_before: active };
+                })()
                 """,
                 await_promise=True,
                 return_by_value=True,
@@ -384,7 +384,7 @@ class DeepSeekProxyClient:
         before_state = await self._capture_response_state()
 
         textbox = await self.browser.main_tab.select("textarea")
-        await textbox.send_keys(request_text)
+        await self._enter_request_text(textbox, request_text)
 
         if not await self._submit_message():
             raise RuntimeError("Could not submit the message.")
@@ -408,6 +408,34 @@ class DeepSeekProxyClient:
         )
         response_payload["session_id"] = _extract_session_id_from_url(current_url)
         return response_payload
+
+    async def _enter_request_text(self, textbox: Any, request_text: str) -> None:
+        try:
+            await textbox.apply(
+                """
+                (textarea) => {
+                    textarea.focus();
+                    textarea.select();
+                }
+                """,
+                await_promise=True,
+            )
+            await self.browser.main_tab.send(zendriver.cdp.input_.insert_text(request_text))
+
+            inserted_text = await self.browser.main_tab.evaluate(
+                "document.querySelector('textarea')?.value || ''",
+                await_promise=True,
+                return_by_value=True,
+            )
+            if inserted_text == request_text:
+                self.logger.debug("Request text inserted with CDP Input.insertText.")
+                return
+
+            self.logger.debug("CDP Input.insertText verification failed. Falling back to send_keys.")
+        except Exception:
+            self.logger.debug("CDP Input.insertText failed. Falling back to send_keys.", exc_info=SETTINGS.debug_mode_enabled)
+
+        await textbox.send_keys(request_text)
 
     async def _submit_message(self) -> bool:
         try:

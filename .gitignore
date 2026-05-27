@@ -1,0 +1,47 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Runtime logs and local output
+log/
+logs/
+*.log
+log.txt
+
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# OS/editor metadata
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local or separate evaluation workspace
+ICPC-Eval/
+
+# Tokenizer archive byproducts and local tests
+tokenizer/__MACOSX/
+tokenizer/deepseek_v3_tokenizer/.DS_Store
+tokenizer/deepseek_v3_tokenizer/deepseek_tokenizer.py
+tokenizer/tokenize_test.py
+tokenizer/使用方法.md

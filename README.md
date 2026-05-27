@@ -22,6 +22,7 @@
 - 支持并发请求
 - 浏览器池会在忙时自动新开实例
 - 支持 token 池轮换
+- 支持整段请求文本快速写入输入框，失败时自动回退到逐字输入
 - 支持 `deepthink` 深度思考开关
 - 支持 `search` 联网搜索开关
 - 支持 `expert_mode` 专家模式开关
@@ -152,7 +153,24 @@ PORT=8000
 - 有多个 token：把 `DEEPSEEK_USER_TOKEN` 留空，在 `DEEPSEEK_USER_TOKENS` 里用英文逗号连接，例如 `token_a,token_b,token_c`
 - 配置了多个 token 后，代理会在并发时轮换使用，降低单 token 压力
 
+也可以复制示例文件：
 
+```powershell
+copy .env.example .env
+```
+
+## setup.py 配置
+
+项目支持独立的 `setup.py` 配置文件，避免把运行参数硬编码在 `API-proxy.py` 里。
+
+如果需要调整运行行为，请编辑 `setup.py` 中的 `SETTINGS = ProxySettings(...)`：
+
+- `fixed_timeout_enabled`: 是否强制所有请求使用固定超时时间
+- `fixed_timeout_seconds`: 固定超时时间，单位秒
+- `cloudflare_wait_enabled`: 是否等待 Cloudflare 验证
+- `cloudflare_wait_seconds`: Cloudflare 验证等待时间，单位秒
+- `char_count_enabled`: 是否在代理退出时导出请求/响应字符统计到 `log/char-count-*.txt`
+- `debug_mode_enabled`: 是否开启更详细的调试日志，并自动关闭 headless 模式
 
 ## 如何获取 `userToken`
 
@@ -375,15 +393,26 @@ curl -X POST http://127.0.0.1:8000/chat \
 
 ## 实现说明
 
+发送请求文本时，代理会优先聚焦 `textarea`，通过 Chrome DevTools Protocol 的 `Input.insertText` 一次性写入整段文本，并读取输入框 `value` 校验结果。如果写入失败或校验不一致，会自动回退到 `send_keys` 逐字输入。
+
 当前主要依赖这些前端特征：
 
 - `textarea`
 - `div.ec4f5d61`
+- `[data-model-type="expert"]`
 - `.ds-markdown`
 - `div.ds-flex._hash`
 - `localStorage.userToken`
 - `localStorage.thinkingEnabled`
 - `localStorage.searchEnabled`
+
+项目还会读取 `tokenizer/deepseek_v3_tokenizer` 下的 tokenizer 文件来估算响应中的 token 用量。
+
+## 更新日志
+
+- 2026-05-27：对齐 GitHub `main` 当前版本 `06ac49a` 后，保留本地输入优化；请求文本优先使用 CDP `Input.insertText` 整段写入，验证失败时自动回退到 `send_keys`。
+- 2026-05-27：补充 `setup.py` 配置说明、运行所需 tokenizer 文件和仓库忽略规则，排除 `.env`、日志、缓存、Mac 元数据和独立评测目录。
+- 2026-05-27：修正专家模式状态检测脚本中的 JavaScript 对象和代码块写法。
 
 ## 免责声明
 
@@ -412,6 +441,7 @@ It opens `chat.deepseek.com`, injects the local `userToken` and site preferences
 - Supports concurrent requests
 - Opens new browser workers when all existing ones are busy
 - Supports token pool rotation
+- Fast full-text request insertion with automatic fallback to typed input
 - Supports `deepthink`
 - Supports `search`
 - Supports `expert_mode`
@@ -544,6 +574,19 @@ Or copy the example file:
 ```bash
 copy .env.example .env
 ```
+
+## setup.py configuration
+
+The project supports a dedicated `setup.py` configuration file so runtime options do not stay hardcoded inside `API-proxy.py`.
+
+Edit `setup.py` and update `SETTINGS = ProxySettings(...)` if you want to change:
+
+- `fixed_timeout_enabled`: force every request to use the same timeout.
+- `fixed_timeout_seconds`: the timeout value used when fixed timeout is enabled.
+- `cloudflare_wait_enabled`: whether to wait for Cloudflare verification.
+- `cloudflare_wait_seconds`: how long Cloudflare verification can wait.
+- `char_count_enabled`: whether to count request / response characters and export a `log/char-count-*.txt` file when the proxy exits.
+- `debug_mode_enabled`: whether to enable broader debug logging and automatically disable headless mode.
 
 ## How to get `userToken`
 
@@ -766,28 +809,26 @@ curl -X POST http://127.0.0.1:8000/chat \
 
 ## Implementation details
 
+Request text is inserted by focusing the `textarea`, using Chrome DevTools Protocol `Input.insertText` to write the full text at once, and then verifying the textarea `value`. If insertion fails or verification does not match, the proxy falls back to `send_keys`.
+
 The current logic depends on these frontend signals:
-
-## setup.py configuration
-
-This project now supports a dedicated `setup.py` config file so these runtime options do not stay hardcoded inside `API-proxy.py`.
-
-Edit `setup.py` and update `SETTINGS = ProxySettings(...)` if you want to change:
-
-- `fixed_timeout_enabled`: force every request to use the same timeout.
-- `fixed_timeout_seconds`: the timeout value used when fixed timeout is enabled.
-- `cloudflare_wait_enabled`: whether to wait for Cloudflare verification.
-- `cloudflare_wait_seconds`: how long Cloudflare verification can wait.
-- `char_count_enabled`: whether to count request / response characters and export a `log/char-count-*.txt` file when the proxy exits.
-- `debug_mode_enabled`: whether to enable broader debug logging and automatically disable headless mode.
 
 - `textarea`
 - `div.ec4f5d61`
+- `[data-model-type="expert"]`
 - `.ds-markdown`
 - `div.ds-flex._hash`
 - `localStorage.userToken`
 - `localStorage.thinkingEnabled`
 - `localStorage.searchEnabled`
+
+The project also reads the files under `tokenizer/deepseek_v3_tokenizer` to estimate token usage in responses.
+
+## Changelog
+
+- 2026-05-27: Compared against the current GitHub `main` version `06ac49a` and kept the local input optimization. Request text now uses CDP `Input.insertText` first, with `send_keys` as a verified fallback.
+- 2026-05-27: Added `setup.py` configuration notes, required tokenizer runtime files, and repository ignore rules for `.env`, logs, caches, macOS metadata, and the separate evaluation workspace.
+- 2026-05-27: Fixed the JavaScript object/block syntax used by expert-mode state detection.
 
 ## Disclaimer
 
